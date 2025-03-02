@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Attendance System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Student Attendance System</h1>
+        <h2>Select Section to Record Attendance</h2>
+
+        <select id="section-select">
+        </select>
+
+        <button onclick="startAttendance()">Start Attendance</button>
+        <button onclick="stopAttendance()">Stop Attendance</button>
+
+        <h2>View Attendance Records</h2>
+        <select id="attendance-section">
+        </select>
+        <input type="date" id="attendance-date">
+        <button onclick="fetchAttendance()">View Attendance</button>
+
+        <h2>Attendance Records</h2>
+        <ul id="attendance-list"></ul>
+        <button onclick="exportToExcel()">Download as Excel</button>
+    </div>
+
+    <script>
+        async function fetchSections() {
+            let response = await fetch("/get_sections");
+            let sections = await response.json();
+            let sectionSelect = document.getElementById("section-select");
+            let attendanceSection = document.getElementById("attendance-section");
+            sectionSelect.innerHTML = "";
+            attendanceSection.innerHTML = "";
+
+            sections.forEach(section => {
+                sectionSelect.innerHTML += `<option value="${section.id}">${section.name}</option>`;
+                attendanceSection.innerHTML += `<option value="${section.id}">${section.name}</option>`;
+            });
+        }
+
+        function startAttendance() {
+            let sectionId = document.getElementById("section-select").value;
+            fetch("/record_attendance", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ section_id: sectionId })
+            }).then(response => response.json())
+              .then(data => alert(data.message));
+        }
+
+        function stopAttendance() {
+            fetch("/stop_attendance", { method: "POST" })
+            .then(response => response.json())
+            .then(data => console.log(data.message));
+        }
+
+        function fetchAttendance() {
+            let sectionId = document.getElementById("attendance-section").value;
+            let date = document.getElementById("attendance-date").value;
+
+            fetch(`/get_attendance/${sectionId}/${date}`)
+            .then(response => response.json())
+            .then(data => {
+                const attendanceList = document.getElementById("attendance-list");
+                attendanceList.innerHTML = "";
+
+                const uniqueRecords = new Set();
+                data.forEach(record => {
+                    const entry = `${record.student_name} - ${record.status}`;
+                    if (!uniqueRecords.has(entry)) {
+                        uniqueRecords.add(entry);
+                        const listItem = document.createElement("li");
+                        listItem.textContent = entry;
+                        attendanceList.appendChild(listItem);
+                    }
+                });
+            });
+        }
+
+        function exportToExcel() {
+            let sectionId = document.getElementById("attendance-section").value;
+            let date = document.getElementById("attendance-date").value;
+            window.location.href = `/export_attendance/${sectionId}/${date}`;
+        }
+
+        window.onload = fetchSections;
+    </script>
+</body>
+</html>
